@@ -15,6 +15,7 @@ import {
   ExitCode,
 } from "./config.js";
 import { setNoColor, printError, printSuccess, style } from "./output.js";
+import { moveTaskToTop } from "./task-ordering.js";
 
 const VERSION = "0.1.0";
 
@@ -62,6 +63,26 @@ function formatDue(
     return `(${due.string})`;
   }
   return `(${due.string || due.date})`;
+}
+
+function resolveAddOrder(
+  options: { top?: boolean; order?: string }
+): "top" | undefined {
+  const normalizedOrder = options.order?.trim().toLowerCase();
+  if (options.top && normalizedOrder && normalizedOrder !== "top") {
+    printError('Use either "--top" or "--order top".');
+    process.exit(ExitCode.InvalidUsage);
+  }
+
+  const order = normalizedOrder ?? (options.top ? "top" : undefined);
+  if (!order) return undefined;
+
+  if (order !== "top") {
+    printError(`Unsupported order: ${order}. Use "top".`);
+    process.exit(ExitCode.InvalidUsage);
+  }
+
+  return "top";
 }
 
 // ============================================
@@ -217,13 +238,17 @@ program
     (val, prev: string[]) => [...prev, val],
     []
   )
+  .option("--top", "Insert task at the top of its project/section")
+  .option("--order <position>", "Insert task at a specific position (top)")
   .option("--parent <id>", "Parent task ID (creates sub-task)")
   .option("--description <text>", "Task description")
   .option("--json", "Output as JSON")
   .action(async (content: string[], options) => {
-    const api = getClient();
+    const token = requireToken();
+    const api = new TodoistApi(token);
     try {
       const taskContent = content.join(" ");
+      const order = resolveAddOrder(options);
 
       const args: Parameters<typeof api.addTask>[0] = {
         content: taskContent,
@@ -248,6 +273,9 @@ program
       }
 
       const task = await api.addTask(args);
+      if (order === "top") {
+        await moveTaskToTop(api, token, task);
+      }
 
       if (options.json) {
         console.log(JSON.stringify(task, null, 2));

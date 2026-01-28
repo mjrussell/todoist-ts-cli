@@ -41,6 +41,7 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "test": "npm run build && node --test",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build"
   },
