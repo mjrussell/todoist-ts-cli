@@ -4,6 +4,7 @@
  * Todoist CLI - Built on the official @doist/todoist-api-typescript SDK
  */
 
+import { createRequire } from "node:module";
 import { Command } from "commander";
 import { TodoistApi } from "@doist/todoist-api-typescript";
 import {
@@ -18,7 +19,8 @@ import { setNoColor, printError, printSuccess, style } from "./output.js";
 import { parseAddOrder } from "./add-order.js";
 import { moveTaskToPosition, moveTaskToTop } from "./task-ordering.js";
 
-const VERSION = "0.2.0";
+const require = createRequire(import.meta.url);
+const { version: VERSION } = require("../package.json") as { version: string };
 
 const program = new Command();
 
