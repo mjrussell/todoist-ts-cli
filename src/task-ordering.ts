@@ -41,13 +41,32 @@ export async function moveTaskToTop(
   task: TaskOrderable,
   fetchImpl: typeof fetch = fetch
 ): Promise<void> {
+  await moveTaskToPosition(api, token, task, 1, fetchImpl);
+}
+
+export async function moveTaskToPosition(
+  api: TaskOrderingApi,
+  token: string,
+  task: TaskOrderable,
+  position: number,
+  fetchImpl: typeof fetch = fetch
+): Promise<void> {
   const args = getOrderingArgs(task);
   const response = await api.getTasks(args);
   const scopedTasks = response.results.filter((candidate) =>
     inSameScope(task, candidate)
   );
   const remaining = scopedTasks.filter((candidate) => candidate.id !== task.id);
-  const ordered = [task, ...sortByChildOrder(remaining)];
+  const orderedRemaining = sortByChildOrder(remaining);
+  const insertIndex = Math.min(
+    Math.max(position - 1, 0),
+    orderedRemaining.length
+  );
+  const ordered = [
+    ...orderedRemaining.slice(0, insertIndex),
+    task,
+    ...orderedRemaining.slice(insertIndex),
+  ];
 
   await reorderItemsToMatchOrder(
     token,

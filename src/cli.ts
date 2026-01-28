@@ -15,9 +15,10 @@ import {
   ExitCode,
 } from "./config.js";
 import { setNoColor, printError, printSuccess, style } from "./output.js";
-import { moveTaskToTop } from "./task-ordering.js";
+import { parseAddOrder } from "./add-order.js";
+import { moveTaskToPosition, moveTaskToTop } from "./task-ordering.js";
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 
 const program = new Command();
 
@@ -65,24 +66,13 @@ function formatDue(
   return `(${due.string || due.date})`;
 }
 
-function resolveAddOrder(
-  options: { top?: boolean; order?: string }
-): "top" | undefined {
-  const normalizedOrder = options.order?.trim().toLowerCase();
-  if (options.top && normalizedOrder && normalizedOrder !== "top") {
-    printError('Use either "--top" or "--order top".');
+function resolveAddOrder(options: { top?: boolean; order?: string }) {
+  const { result, error } = parseAddOrder(options);
+  if (error) {
+    printError(error);
     process.exit(ExitCode.InvalidUsage);
   }
-
-  const order = normalizedOrder ?? (options.top ? "top" : undefined);
-  if (!order) return undefined;
-
-  if (order !== "top") {
-    printError(`Unsupported order: ${order}. Use "top".`);
-    process.exit(ExitCode.InvalidUsage);
-  }
-
-  return "top";
+  return result;
 }
 
 // ============================================
@@ -239,7 +229,10 @@ program
     []
   )
   .option("--top", "Insert task at the top of its project/section")
-  .option("--order <position>", "Insert task at a specific position (top)")
+  .option(
+    "--order <position>",
+    "Insert task at a specific position (top or 1-based index)"
+  )
   .option("--parent <id>", "Parent task ID (creates sub-task)")
   .option("--description <text>", "Task description")
   .option("--json", "Output as JSON")
@@ -273,8 +266,10 @@ program
       }
 
       const task = await api.addTask(args);
-      if (order === "top") {
+      if (order?.kind === "top") {
         await moveTaskToTop(api, token, task);
+      } else if (order?.kind === "position") {
+        await moveTaskToPosition(api, token, task, order.position);
       }
 
       if (options.json) {

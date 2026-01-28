@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { moveTaskToTop } from "../dist/task-ordering.js";
+import { moveTaskToPosition, moveTaskToTop } from "../dist/task-ordering.js";
 
 const baseTask = () => ({
   id: "task",
@@ -82,5 +82,76 @@ test("moveTaskToTop scopes to section when sectionId is set", async () => {
     { id: "new", child_order: 1 },
     { id: "d", child_order: 2 },
     { id: "c", child_order: 3 },
+  ]);
+});
+
+test("moveTaskToPosition inserts at position 1", async () => {
+  const newTask = createTask({ id: "new", childOrder: 10 });
+  const api = {
+    getTasks: async () => ({
+      results: [
+        createTask({ id: "a", childOrder: 2 }),
+        createTask({ id: "b", childOrder: 1 }),
+        newTask,
+      ],
+    }),
+  };
+
+  const { fetchMock, calls } = createFetchMock();
+  await moveTaskToPosition(api, "token", newTask, 1, fetchMock);
+
+  const body = JSON.parse(calls[0][1].body);
+  assert.deepEqual(body.commands[0].args.items, [
+    { id: "new", child_order: 1 },
+    { id: "b", child_order: 2 },
+    { id: "a", child_order: 3 },
+  ]);
+});
+
+test("moveTaskToPosition inserts in the middle", async () => {
+  const newTask = createTask({ id: "new", childOrder: 10 });
+  const api = {
+    getTasks: async () => ({
+      results: [
+        createTask({ id: "a", childOrder: 1 }),
+        createTask({ id: "b", childOrder: 2 }),
+        createTask({ id: "c", childOrder: 3 }),
+        newTask,
+      ],
+    }),
+  };
+
+  const { fetchMock, calls } = createFetchMock();
+  await moveTaskToPosition(api, "token", newTask, 2, fetchMock);
+
+  const body = JSON.parse(calls[0][1].body);
+  assert.deepEqual(body.commands[0].args.items, [
+    { id: "a", child_order: 1 },
+    { id: "new", child_order: 2 },
+    { id: "b", child_order: 3 },
+    { id: "c", child_order: 4 },
+  ]);
+});
+
+test("moveTaskToPosition inserts at bottom when position exceeds list length", async () => {
+  const newTask = createTask({ id: "new", childOrder: 10 });
+  const api = {
+    getTasks: async () => ({
+      results: [
+        createTask({ id: "a", childOrder: 1 }),
+        createTask({ id: "b", childOrder: 2 }),
+        newTask,
+      ],
+    }),
+  };
+
+  const { fetchMock, calls } = createFetchMock();
+  await moveTaskToPosition(api, "token", newTask, 10, fetchMock);
+
+  const body = JSON.parse(calls[0][1].body);
+  assert.deepEqual(body.commands[0].args.items, [
+    { id: "a", child_order: 1 },
+    { id: "b", child_order: 2 },
+    { id: "new", child_order: 3 },
   ]);
 });
