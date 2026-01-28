@@ -56,6 +56,7 @@ todoist tasks -p "Work"  # Tasks in project
 todoist tasks -f "p1"    # Filter query (priority 1)
 
 todoist add "Task" -d "tomorrow" -P 1 -p "Work" -l "urgent"
+todoist add "Task at top" -p "Work" --top
 todoist view <id>        # View task details
 todoist update <id> --due "next week"
 todoist done <id>        # Complete task
@@ -132,6 +133,9 @@ todoist add "Review PR" \
   --project "Work" \
   --label "dev" \
   --description "Check the new feature branch"
+
+# Add task to the top of a project/section
+todoist add "Triage inbox" --order top
 ```
 
 ### Filter tasks by priority
