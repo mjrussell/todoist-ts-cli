@@ -58,8 +58,11 @@ todoist tasks -f "p1"    # Filter query (priority 1)
 todoist add "Task" -d "tomorrow" -P 1 -p "Work" -l "urgent"
 todoist add "Task at top" -p "Work" --top
 todoist add "Task at position 3" -p "Work" --order 3
+todoist add "Assigned task" -a "user-id"  # Assign to user
 todoist view <id>        # View task details
 todoist update <id> --due "next week"
+todoist update <id> -a "user-id"        # Assign task
+todoist update <id> -a "null"           # Unassign task
 todoist done <id>        # Complete task
 todoist reopen <id>      # Reopen completed task
 todoist move <id> -p "Personal"  # Move to project
@@ -94,6 +97,12 @@ todoist label-add "urgent" --color red
 ```bash
 todoist comments <taskId>              # List comments
 todoist comment <taskId> "Note text"   # Add comment
+```
+
+### Collaborators
+
+```bash
+todoist collaborators <project-id>     # List collaborators (for assignment)
 ```
 
 ## Options

@@ -237,6 +237,7 @@ program
   )
   .option("--parent <id>", "Parent task ID (creates sub-task)")
   .option("--description <text>", "Task description")
+  .option("-a, --assign <user-id>", "Assign task to user ID")
   .option("--json", "Output as JSON")
   .action(async (content: string[], options) => {
     const token = requireToken();
@@ -254,6 +255,7 @@ program
       if (options.priority) args.priority = 5 - options.priority;
       if (options.label && options.label.length > 0) args.labels = options.label;
       if (options.parent) args.parentId = options.parent;
+      if (options.assign) args.assigneeId = options.assign;
 
       if (options.project) {
         const projectsResponse = await api.getProjects();
@@ -356,6 +358,7 @@ program
   .option("-d, --due <date>", "New due date")
   .option("-P, --priority <n>", "New priority 1-4", parseInt)
   .option("--description <text>", "New description")
+  .option("-a, --assign <user-id>", "Assign task to user ID (use 'null' to unassign)")
   .option("--json", "Output as JSON")
   .action(async (taskId: string, options) => {
     const api = getClient();
@@ -366,6 +369,7 @@ program
       if (options.due) args.dueString = options.due;
       if (options.description) args.description = options.description;
       if (options.priority) args.priority = 5 - options.priority;
+      if (options.assign) args.assigneeId = options.assign === "null" ? null : options.assign;
 
       const task = await api.updateTask(taskId, args);
 
@@ -553,6 +557,36 @@ program
 
       printSuccess(`Created project: ${project.name}`);
       console.log(style.dim(`  ID: ${project.id}`));
+    } catch (error) {
+      printError(error instanceof Error ? error.message : String(error));
+      process.exit(ExitCode.Failure);
+    }
+  });
+
+program
+  .command("collaborators <project-id>")
+  .description("List project collaborators (for assignment)")
+  .option("--json", "Output as JSON")
+  .action(async (projectId: string, options: { json?: boolean }) => {
+    const api = getClient();
+    try {
+      const response = await api.getProjectCollaborators(projectId);
+      const collaborators = response.results;
+
+      if (options.json) {
+        console.log(JSON.stringify(collaborators, null, 2));
+        return;
+      }
+
+      if (collaborators.length === 0) {
+        console.log("No collaborators found.");
+        return;
+      }
+
+      console.log(style.bold("Collaborators:"));
+      for (const user of collaborators) {
+        console.log(`${style.dim(user.id)}  ${user.name} ${style.dim(`(${user.email})`)}`);
+      }
     } catch (error) {
       printError(error instanceof Error ? error.message : String(error));
       process.exit(ExitCode.Failure);
