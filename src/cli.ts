@@ -17,6 +17,7 @@ import {
 } from "./config.js";
 import { setNoColor, printError, printSuccess, style } from "./output.js";
 import { parseAddOrder } from "./add-order.js";
+import { parseAssigneeId, parseAssigneeIdUpdate } from "./assignee.js";
 import { moveTaskToPosition, moveTaskToTop } from "./task-ordering.js";
 
 const require = createRequire(import.meta.url);
@@ -255,7 +256,9 @@ program
       if (options.priority) args.priority = 5 - options.priority;
       if (options.label && options.label.length > 0) args.labels = options.label;
       if (options.parent) args.parentId = options.parent;
-      if (options.assign) args.assigneeId = options.assign;
+
+      const assigneeId = parseAssigneeId(options.assign);
+      if (assigneeId !== undefined) args.assigneeId = assigneeId;
 
       if (options.project) {
         const projectsResponse = await api.getProjects();
@@ -369,7 +372,9 @@ program
       if (options.due) args.dueString = options.due;
       if (options.description) args.description = options.description;
       if (options.priority) args.priority = 5 - options.priority;
-      if (options.assign) args.assigneeId = options.assign === "null" ? null : options.assign;
+
+      const assigneeId = parseAssigneeIdUpdate(options.assign);
+      if (assigneeId !== undefined) args.assigneeId = assigneeId;
 
       const task = await api.updateTask(taskId, args);
 

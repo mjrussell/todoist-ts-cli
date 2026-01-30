@@ -3,6 +3,7 @@ import { defineConfig } from "tsup";
 export default defineConfig({
   entry: [
     "src/add-order.ts",
+    "src/assignee.ts",
     "src/cli.ts",
     "src/index.ts",
     "src/task-ordering.ts",
