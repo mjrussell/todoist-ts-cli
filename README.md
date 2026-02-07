@@ -56,16 +56,22 @@ todoist tasks -p "Work"  # Tasks in project
 todoist tasks -f "p1"    # Filter query (priority 1)
 
 todoist add "Task" -d "tomorrow" -P 1 -p "Work" -l "urgent"
+todoist add "Task" -p "Work" --deadline "2026-03-05"
 todoist add "Task at top" -p "Work" --top
 todoist add "Task at position 3" -p "Work" --order 3
 todoist add "Assigned task" -a "user-id"  # Assign to user
 todoist view <id>        # View task details
 todoist update <id> --due "next week"
+todoist update <id> --deadline "2026-03-05"
+todoist update <id> --deadline none          # Clear deadline
+todoist update <id> --labels "next,waiting" # Replace labels
+todoist update <id> --add-label next --remove-label waiting
 todoist update <id> -a "user-id"        # Assign task
 todoist update <id> -a "null"           # Unassign task
 todoist done <id>        # Complete task
 todoist reopen <id>      # Reopen completed task
-todoist move <id> -p "Personal"  # Move to project
+todoist move <id> -p "Personal"                 # Move to project
+todoist move <id> -p "Work" -s "Section A"      # Move to section
 todoist delete <id>      # Delete task
 todoist search "keyword" # Search tasks
 ```
@@ -114,7 +120,7 @@ Global flags available on all commands:
 | `-h, --help` | Show help |
 | `-V, --version` | Show version number |
 | `--no-color` | Disable colored output |
-| `--json` | Output as JSON (where applicable) |
+| `--json` | Output as JSON (where applicable; not supported by every command) |
 
 ## Environment Variables
 
@@ -139,6 +145,7 @@ Global flags available on all commands:
 ```bash
 todoist add "Review PR" \
   --due "tomorrow 10am" \
+  --deadline "2026-03-05" \
   --priority 2 \
   --project "Work" \
   --label "dev" \
@@ -147,6 +154,29 @@ todoist add "Review PR" \
 # Add task to a specific position in a project/section
 todoist add "Triage inbox" --order top
 todoist add "Triage inbox" --order 2
+```
+
+### Update labels
+
+```bash
+# Replace all labels
+todoist update <id> --labels "next,waiting"
+
+# Or apply incremental changes
+todoist update <id> --add-label next --remove-label waiting
+```
+
+### Deadlines
+
+```bash
+todoist update <id> --deadline "2026-03-05"
+todoist update <id> --deadline none  # clear
+```
+
+### Move to a section
+
+```bash
+todoist move <id> -p "Work" -s "Section A"
 ```
 
 ### Filter tasks by priority

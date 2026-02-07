@@ -18,6 +18,9 @@ import {
 import { setNoColor, printError, printSuccess, style } from "./output.js";
 import { parseAddOrder } from "./add-order.js";
 import { parseAssigneeId, parseAssigneeIdUpdate } from "./assignee.js";
+import { parseDeadlineDate, parseDeadlineUpdate } from "./deadline.js";
+import { applyLabelDelta, parseLabelsCsv } from "./labels.js";
+import { resolveMoveTarget } from "./move-target.js";
 import { moveTaskToPosition, moveTaskToTop } from "./task-ordering.js";
 
 const require = createRequire(import.meta.url);
@@ -225,6 +228,7 @@ program
   .option("-d, --due <date>", "Due date (e.g., 'tomorrow', 'next monday')")
   .option("-p, --project <name>", "Project name")
   .option("-P, --priority <n>", "Priority 1-4 (1=highest)", parseInt)
+  .option("--deadline <date>", "Deadline date (YYYY-MM-DD)")
   .option(
     "-l, --label <name>",
     "Add label (can repeat)",
@@ -252,6 +256,14 @@ program
       };
 
       if (options.due) args.dueString = options.due;
+      if (options.deadline) {
+        const parsed = parseDeadlineDate(options.deadline);
+        if (parsed.error) {
+          printError(parsed.error);
+          process.exit(ExitCode.InvalidUsage);
+        }
+        args.deadlineDate = parsed.deadlineDate;
+      }
       if (options.description) args.description = options.description;
       if (options.priority) args.priority = 5 - options.priority;
       if (options.label && options.label.length > 0) args.labels = options.label;
@@ -361,6 +373,20 @@ program
   .option("-d, --due <date>", "New due date")
   .option("-P, --priority <n>", "New priority 1-4", parseInt)
   .option("--description <text>", "New description")
+  .option("--deadline <date>", "New deadline date (YYYY-MM-DD) or 'none' to clear")
+  .option("--labels <names>", "Replace labels (comma-separated)")
+  .option(
+    "--add-label <name>",
+    "Add label (can repeat)",
+    (val, prev: string[]) => [...prev, val],
+    []
+  )
+  .option(
+    "--remove-label <name>",
+    "Remove label (can repeat)",
+    (val, prev: string[]) => [...prev, val],
+    []
+  )
   .option("-a, --assign <user-id>", "Assign task to user ID (use 'null' to unassign)")
   .option("--json", "Output as JSON")
   .action(async (taskId: string, options) => {
@@ -372,6 +398,40 @@ program
       if (options.due) args.dueString = options.due;
       if (options.description) args.description = options.description;
       if (options.priority) args.priority = 5 - options.priority;
+
+      if (options.deadline) {
+        const parsed = parseDeadlineUpdate(options.deadline);
+        if (parsed.error) {
+          printError(parsed.error);
+          process.exit(ExitCode.InvalidUsage);
+        }
+        args.deadlineDate = parsed.deadlineDate;
+      }
+
+      const hasReplaceLabels = typeof options.labels === "string";
+      const hasDeltaLabels =
+        (options.addLabel && options.addLabel.length > 0) ||
+        (options.removeLabel && options.removeLabel.length > 0);
+
+      if (hasReplaceLabels && hasDeltaLabels) {
+        printError("Use either --labels or --add-label/--remove-label, not both");
+        process.exit(ExitCode.InvalidUsage);
+      }
+
+      if (hasReplaceLabels) {
+        const parsed = parseLabelsCsv(options.labels);
+        if (parsed.error) {
+          printError(parsed.error);
+          process.exit(ExitCode.InvalidUsage);
+        }
+        args.labels = parsed.labels;
+      } else if (hasDeltaLabels) {
+        const current = await api.getTask(taskId);
+        args.labels = applyLabelDelta(current.labels, {
+          add: options.addLabel,
+          remove: options.removeLabel,
+        });
+      }
 
       const assigneeId = parseAssigneeIdUpdate(options.assign);
       if (assigneeId !== undefined) args.assigneeId = assigneeId;
@@ -399,53 +459,31 @@ program
   .action(async (taskId: string, options) => {
     const api = getClient();
     try {
-      let projectId: string | undefined;
-      let sectionId: string | undefined;
-      let parentId: string | undefined;
+      const projectsResponse = await api.getProjects();
+      const sectionsResponse = await api.getSections();
 
-      if (options.project) {
-        const projectsResponse = await api.getProjects();
-        const project = projectsResponse.results.find((p) =>
-          p.name.toLowerCase().includes(options.project.toLowerCase())
-        );
-        if (!project) {
-          printError(`Project not found: ${options.project}`);
-          process.exit(ExitCode.Failure);
-        }
-        projectId = project.id;
-      }
+      const result = resolveMoveTarget(
+        {
+          projectName: options.project,
+          sectionName: options.section,
+          parentId: options.parent,
+        },
+        projectsResponse.results.map((p) => ({ id: p.id, name: p.name })),
+        sectionsResponse.results.map((s) => ({
+          id: s.id,
+          name: s.name,
+          projectId: s.projectId,
+        }))
+      );
 
-      if (options.section) {
-        const sectionsResponse = await api.getSections();
-        const section = sectionsResponse.results.find((s) =>
-          s.name.toLowerCase().includes(options.section.toLowerCase())
-        );
-        if (!section) {
-          printError(`Section not found: ${options.section}`);
-          process.exit(ExitCode.Failure);
-        }
-        sectionId = section.id;
-      }
-
-      if (options.parent) {
-        parentId = options.parent;
-      }
-
-      if (!projectId && !sectionId && !parentId) {
-        printError("Must specify --project, --section, or --parent");
+      if (!result.ok) {
+        printError(result.error);
         process.exit(ExitCode.InvalidUsage);
       }
 
-      let task;
-      if (projectId) {
-        task = await api.moveTask(taskId, { projectId });
-      } else if (sectionId) {
-        task = await api.moveTask(taskId, { sectionId });
-      } else if (parentId) {
-        task = await api.moveTask(taskId, { parentId });
-      }
+      const task = await api.moveTask(taskId, result.args);
 
-      printSuccess(`Moved: ${task!.content}`);
+      printSuccess(`Moved: ${task.content}`);
     } catch (error) {
       printError(error instanceof Error ? error.message : String(error));
       process.exit(ExitCode.Failure);

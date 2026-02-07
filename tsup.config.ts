@@ -4,6 +4,9 @@ export default defineConfig({
   entry: [
     "src/add-order.ts",
     "src/assignee.ts",
+    "src/deadline.ts",
+    "src/labels.ts",
+    "src/move-target.ts",
     "src/cli.ts",
     "src/index.ts",
     "src/task-ordering.ts",
