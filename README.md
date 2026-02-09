@@ -149,11 +149,15 @@ todoist add "Review PR" \
   --priority 2 \
   --project "Work" \
   --label "dev" \
+  --assign "user-id" \
   --description "Check the new feature branch"
 
 # Add task to a specific position in a project/section
 todoist add "Triage inbox" --order top
 todoist add "Triage inbox" --order 2
+
+# Assign task in a shared project
+todoist add "Review PR" -a "123456789"  # Use collaborator ID
 ```
 
 ### Update labels
