@@ -1,6 +1,6 @@
 {
   "name": "todoist-ts-cli",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Unofficial CLI for Todoist using the official TypeScript SDK",
   "author": "Matt Russell <matthewjosephrussell@gmail.com>",
   "license": "MIT",
